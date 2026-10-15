@@ -1,0 +1,6 @@
+{
+  "name": "Digital Coyotes Project Manager",
+  "description": "Digital Coyotes Project Manager - Remote engineering management platform with integrated time tracking, automated task prioritization matrix, and centralized deployment operations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
