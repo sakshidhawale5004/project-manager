@@ -22,6 +22,7 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
     projectLead: 'Sakshi',
     subLead: '',
     liveUrl: '',
+    startDate: new Date().toISOString().split('T')[0],
     initiationDate: new Date().toISOString().split('T')[0],
     technology: 'React / Next.js',
     framework: 'Tailwind CSS',
@@ -40,14 +41,18 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
 
   useEffect(() => {
     if (project) {
-      setFormData(project);
+      setFormData({
+        ...project,
+        startDate: project.startDate || project.initiationDate || new Date().toISOString().split('T')[0],
+      });
     } else {
       setFormData({
         name: '',
         projectLead: 'Sakshi',
         subLead: '',
         liveUrl: '',
-        initiationDate: '2026-10-15',
+        startDate: new Date().toISOString().split('T')[0],
+        initiationDate: new Date().toISOString().split('T')[0],
         technology: 'Next.js / TypeScript',
         framework: 'Tailwind CSS',
         design: 'Wireframing',
@@ -133,12 +138,12 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
                 value={formData.projectLead || ''}
                 onChange={(e) => setFormData({ ...formData, projectLead: e.target.value })}
                 className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded px-3 py-1.5 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:border-indigo-500"
-                placeholder="Sakshi, Aishwarya, Suraj, Hasina, Kunal..."
+                placeholder="Sakshi, Aishwarya, Suraj, Hasina, Jorden..."
               />
               <datalist id="modal-lead-options">
                 {(teamMembers && teamMembers.length > 0
                   ? teamMembers.map((m) => m.name)
-                  : ['Sakshi', 'Aishwarya', 'Suraj', 'Hasina', 'Kunal', 'Rasika', 'Jorden']
+                  : ['Sakshi', 'Aishwarya', 'Suraj', 'Hasina', 'Jorden']
                 ).map((name) => (
                   <option key={name} value={name} />
                 ))}
@@ -152,26 +157,48 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
                 value={formData.subLead || ''}
                 onChange={(e) => setFormData({ ...formData, subLead: e.target.value })}
                 className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded px-3 py-1.5 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:border-indigo-500"
-                placeholder="Rasika, Jorden, Rashi..."
+                placeholder="Hasina, Jorden, Suraj..."
               />
             </div>
           </div>
 
-          {/* Row 3: Live Link & Initiation Date */}
+          {/* Row 3: Live Link */}
+          <div>
+            <label className="block text-neutral-600 dark:text-neutral-400 mb-1 font-medium">Current Live URL</label>
+            <input
+              type="url"
+              value={formData.liveUrl || ''}
+              onChange={(e) => setFormData({ ...formData, liveUrl: e.target.value })}
+              className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded px-3 py-1.5 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:border-indigo-500"
+              placeholder="https://clientdomain.com/"
+            />
+          </div>
+
+          {/* Row 4: Project Schedule - Starting Date & Deadline */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-neutral-600 dark:text-neutral-400 mb-1 font-medium">Current Live URL</label>
+              <label className="block text-neutral-600 dark:text-neutral-400 mb-1 font-medium">
+                Starting Date *
+              </label>
               <input
-                type="url"
-                value={formData.liveUrl || ''}
-                onChange={(e) => setFormData({ ...formData, liveUrl: e.target.value })}
-                className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded px-3 py-1.5 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:border-indigo-500"
-                placeholder="https://clientdomain.com/"
+                type="date"
+                required
+                value={formData.startDate || formData.initiationDate || ''}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    startDate: e.target.value,
+                    initiationDate: e.target.value,
+                  })
+                }
+                className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded px-3 py-1.5 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:border-indigo-500 font-mono"
               />
             </div>
 
             <div>
-              <label className="block text-neutral-600 dark:text-neutral-400 mb-1 font-medium">Deadline Date</label>
+              <label className="block text-neutral-600 dark:text-neutral-400 mb-1 font-medium">
+                Target Deadline
+              </label>
               <input
                 type="date"
                 value={formData.deadline || ''}

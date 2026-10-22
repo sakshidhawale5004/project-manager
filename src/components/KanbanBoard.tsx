@@ -126,6 +126,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         {p.subLead && <span>Sub: {p.subLead}</span>}
                       </div>
 
+                      <div className="text-[10px] text-neutral-500 dark:text-neutral-400 font-mono flex items-center justify-between">
+                        <span>Start: {p.startDate || p.initiationDate || '—'}</span>
+                        {p.deadline && <span>Due: {p.deadline}</span>}
+                      </div>
+
                       {p.remark && (
                         <div className="text-[10px] text-neutral-500 dark:text-neutral-400 line-clamp-2 italic">
                           "{p.remark}"

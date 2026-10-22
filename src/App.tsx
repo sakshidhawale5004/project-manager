@@ -4,9 +4,7 @@ import { INITIAL_PROJECTS, INITIAL_MEMBERS, INITIAL_TIME_ENTRIES } from './data/
 import { DEFAULT_WEIGHTS, autoPrioritizeProjects } from './utils/prioritization';
 import { TopBar, TabKey } from './components/TopBar';
 import { ProjectTable } from './components/ProjectTable';
-import { PrioritizationMatrix } from './components/PrioritizationMatrix';
 import { KanbanBoard } from './components/KanbanBoard';
-import { TimeTrackerView } from './components/TimeTrackerView';
 import { HostingVault } from './components/HostingVault';
 import { ProjectDetailModal } from './components/ProjectDetailModal';
 import { ProjectFormModal } from './components/ProjectFormModal';
@@ -14,7 +12,7 @@ import { TimeLogModal } from './components/TimeLogModal';
 import { DigitalCoyotesLogo } from './components/DigitalCoyotesLogo';
 import { RotateCcw } from 'lucide-react';
 
-const DEFAULT_VISIBLE_TABS: TabKey[] = ['projects', 'priorities', 'kanban'];
+const DEFAULT_VISIBLE_TABS: TabKey[] = ['projects', 'kanban', 'hosting'];
 
 export default function App() {
   // Navigation
@@ -26,16 +24,26 @@ export default function App() {
       const saved = localStorage.getItem('dc_projects') || localStorage.getItem('nexus_projects');
       if (saved) {
         const parsed: Project[] = JSON.parse(saved);
-        const hasHasina = parsed.some((p) => p.projectLead.toLowerCase() === 'hasina');
-        if (!hasHasina) {
-          return parsed.map((p) => {
-            if (p.id === 'proj-59' || p.id === 'proj-71') {
-              return { ...p, projectLead: 'Hasina' };
-            }
-            return p;
-          });
-        }
-        return parsed;
+        return parsed.map((p) => {
+          let updatedLead = p.projectLead;
+          let updatedSub = p.subLead;
+          if (p.projectLead && p.projectLead.toLowerCase() === 'kunal') {
+            updatedLead = 'Suraj';
+          }
+          if (p.subLead && p.subLead.toLowerCase() === 'rasika') {
+            updatedSub = 'Hasina';
+          }
+          if (p.id === 'proj-59' || p.id === 'proj-71') {
+            updatedLead = 'Hasina';
+          }
+          const startDate = p.startDate || p.initiationDate || '2026-02-15';
+          return {
+            ...p,
+            projectLead: updatedLead,
+            subLead: updatedSub,
+            startDate,
+          };
+        });
       }
     } catch (e) {
       console.error(e);
@@ -48,11 +56,16 @@ export default function App() {
       const saved = localStorage.getItem('dc_members') || localStorage.getItem('nexus_members');
       if (saved) {
         const parsed: RemoteTeamMember[] = JSON.parse(saved);
-        if (!parsed.some((m) => m.name.toLowerCase() === 'hasina')) {
+        const filtered = parsed.filter(
+          (m) =>
+            m.name.toLowerCase() !== 'kunal' &&
+            m.name.toLowerCase() !== 'rasika'
+        );
+        if (!filtered.some((m) => m.name.toLowerCase() === 'hasina')) {
           const hasina = INITIAL_MEMBERS.find((m) => m.name === 'Hasina');
-          if (hasina) return [...parsed, hasina];
+          if (hasina) return [...filtered, hasina];
         }
-        return parsed;
+        return filtered;
       }
     } catch (e) {
       console.error(e);
@@ -131,14 +144,17 @@ export default function App() {
     setIsDark((prev) => !prev);
   };
 
-  // Visible Tabs State (Default: Projects Ledger, Prioritization Engine, Sprint Board; Remote Time Logs and Hosting Vault removed by default)
+  // Visible Tabs State (Default: Projects Ledger, Sprint Board, Hosting & Backups; Prioritization Engine & Remote Time Logs removed per request)
   const [visibleTabs, setVisibleTabs] = useState<TabKey[]>(() => {
     try {
       const saved = localStorage.getItem('dc_visible_tabs');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          const valid = parsed.filter(
+            (t: string) => t === 'projects' || t === 'kanban' || t === 'hosting'
+          ) as TabKey[];
+          if (valid.length > 0) return valid;
         }
       }
     } catch (e) {
@@ -354,7 +370,8 @@ export default function App() {
         projectLead: formData.projectLead || 'Sakshi',
         subLead: formData.subLead || '',
         liveUrl: formData.liveUrl || '',
-        initiationDate: formData.initiationDate || new Date().toISOString().split('T')[0],
+        startDate: formData.startDate || formData.initiationDate || new Date().toISOString().split('T')[0],
+        initiationDate: formData.initiationDate || formData.startDate || new Date().toISOString().split('T')[0],
         technology: formData.technology || 'WordPress / PHP',
         framework: formData.framework || 'Custom',
         design: formData.design || 'In Review',
@@ -399,6 +416,7 @@ export default function App() {
       'Project Lead',
       'Sub lead',
       'Current Live Link',
+      'Starting Date',
       'Initiation Date',
       'Technology',
       'Frame Work',
@@ -422,6 +440,7 @@ export default function App() {
       `"${p.projectLead.replace(/"/g, '""')}"`,
       `"${(p.subLead || '').replace(/"/g, '""')}"`,
       `"${(p.liveUrl || '').replace(/"/g, '""')}"`,
+      `"${p.startDate || p.initiationDate || ''}"`,
       `"${p.initiationDate || ''}"`,
       `"${(p.technology || '').replace(/"/g, '""')}"`,
       `"${(p.framework || '').replace(/"/g, '""')}"`,
@@ -487,21 +506,6 @@ export default function App() {
           />
         )}
 
-        {visibleTabs.includes('priorities') && activeTab === 'priorities' && (
-          <PrioritizationMatrix
-            projects={projects}
-            teamMembers={members}
-            weights={weights}
-            onUpdateWeights={(w) => {
-              setWeights(w);
-              setProjects((prev) => autoPrioritizeProjects(prev, w));
-            }}
-            onRunAutoPrioritize={handleRunAutoPrioritize}
-            onSelectProject={(p) => setDetailProject(p)}
-            onStartTimer={handleStartTimerForProject}
-          />
-        )}
-
         {visibleTabs.includes('kanban') && activeTab === 'kanban' && (
           <KanbanBoard
             projects={projects}
@@ -509,20 +513,6 @@ export default function App() {
             onSelectProject={(p) => setDetailProject(p)}
             onUpdateStatus={handleUpdateStatus}
             onStartTimer={handleStartTimerForProject}
-          />
-        )}
-
-        {visibleTabs.includes('timetracker') && activeTab === 'timetracker' && (
-          <TimeTrackerView
-            projects={projects}
-            teamMembers={members}
-            timeEntries={timeEntries}
-            activeTimer={activeTimer}
-            onStartCustomTimer={handleStartCustomTimer}
-            onToggleTimer={handleToggleTimer}
-            onStopAndLogTimer={handleStopAndLogTimer}
-            onAddManualTimeEntry={handleAddManualTimeEntry}
-            onDeleteTimeEntry={handleDeleteTimeEntry}
           />
         )}
 

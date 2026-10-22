@@ -40,7 +40,7 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Sorting
-  const [sortField, setSortField] = useState<'srNo' | 'name' | 'priorityScore' | 'deadline' | 'loggedHours'>('priorityScore');
+  const [sortField, setSortField] = useState<'srNo' | 'name' | 'priorityScore' | 'startDate' | 'deadline' | 'loggedHours'>('priorityScore');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const handleCopyCredentials = (id: string, text: string, e: React.MouseEvent) => {
@@ -96,6 +96,11 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
       .sort((a, b) => {
         let valA = a[sortField];
         let valB = b[sortField];
+
+        if (sortField === 'startDate') {
+          valA = a.startDate || a.initiationDate || '';
+          valB = b.startDate || b.initiationDate || '';
+        }
 
         if (typeof valA === 'string') {
           valA = (valA || '').toLowerCase();
@@ -282,8 +287,17 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
                 <th className="py-2.5 px-3 font-semibold w-36">Lead & Sub</th>
                 <th className="py-2.5 px-3 font-semibold w-36">Status</th>
                 <th
+                  onClick={() => handleSort('startDate')}
+                  className="py-2.5 px-3 font-semibold cursor-pointer hover:text-neutral-900 dark:hover:text-white w-28"
+                >
+                  <div className="flex items-center gap-1">
+                    <span>Start Date</span>
+                    {sortField === 'startDate' && <ArrowUpDown className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />}
+                  </div>
+                </th>
+                <th
                   onClick={() => handleSort('deadline')}
-                  className="py-2.5 px-3 font-semibold cursor-pointer hover:text-neutral-900 dark:hover:text-white w-32"
+                  className="py-2.5 px-3 font-semibold cursor-pointer hover:text-neutral-900 dark:hover:text-white w-28"
                 >
                   <div className="flex items-center gap-1">
                     <span>Deadline</span>
@@ -306,7 +320,7 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
             <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800/60">
               {filteredProjects.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-neutral-500">
+                  <td colSpan={10} className="py-12 text-center text-neutral-500">
                     No matching projects found for current search/filters.
                   </td>
                 </tr>
@@ -417,6 +431,11 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
                             {project.lastChange}
                           </div>
                         )}
+                      </td>
+
+                      {/* Start Date */}
+                      <td className="py-2.5 px-3 font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
+                        {project.startDate || project.initiationDate || '—'}
                       </td>
 
                       {/* Deadline */}

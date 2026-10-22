@@ -155,8 +155,8 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
         {/* Detailed Fields Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1">
-            <div className="text-neutral-500 dark:text-neutral-400 font-medium">Initiation Date</div>
-            <div className="font-mono text-neutral-800 dark:text-neutral-200">{project.initiationDate || '—'}</div>
+            <div className="text-neutral-500 dark:text-neutral-400 font-medium">Starting Date</div>
+            <div className="font-mono text-neutral-800 dark:text-neutral-200">{project.startDate || project.initiationDate || '—'}</div>
           </div>
 
           <div className="space-y-1">

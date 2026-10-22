@@ -15,6 +15,7 @@ export interface Project {
   projectLead: string;
   subLead: string;
   liveUrl: string;
+  startDate: string;
   initiationDate: string;
   technology: string;
   framework: string;

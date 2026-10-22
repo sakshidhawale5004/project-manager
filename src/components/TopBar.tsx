@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Square, Plus, Clock, Sun, Moon, Sparkles, LayoutGrid, Layers, Check } from 'lucide-react';
+import { Plus, Sun, Moon, LayoutGrid, Layers } from 'lucide-react';
 import { DigitalCoyotesLogo } from './DigitalCoyotesLogo';
 
-export type TabKey = 'projects' | 'priorities' | 'kanban' | 'timetracker' | 'hosting';
+export type TabKey = 'projects' | 'kanban' | 'hosting';
 
 interface TabMeta {
   id: TabKey;
@@ -19,22 +19,10 @@ export const ALL_WORKSPACE_TABS: TabMeta[] = [
     desc: 'Master table of all 71 active deployments, project leads, tech, and live status',
   },
   {
-    id: 'priorities',
-    label: 'Prioritization Engine',
-    mobileLabel: 'Priorities',
-    desc: 'Lead-based focus queue, SLA tracking, urgency weights, and smart recommendations',
-  },
-  {
     id: 'kanban',
     label: 'Sprint Board',
     mobileLabel: 'Sprint Board',
     desc: 'Interactive 6-column workflow board across all client delivery stages',
-  },
-  {
-    id: 'timetracker',
-    label: 'Remote Time Logs',
-    mobileLabel: 'Time Logs',
-    desc: 'Live stopwatch session tracker and team member hourly logs',
   },
   {
     id: 'hosting',
@@ -51,14 +39,14 @@ interface TopBarProps {
   onToggleTabVisibility: (tab: TabKey) => void;
   onResetTabs: () => void;
   onOpenNewProject: () => void;
-  onOpenLogTime: () => void;
-  activeTimer: {
+  onOpenLogTime?: () => void;
+  activeTimer?: {
     isRunning: boolean;
     projectName: string;
     seconds: number;
   };
-  onToggleTimer: () => void;
-  onStopTimer: () => void;
+  onToggleTimer?: () => void;
+  onStopTimer?: () => void;
   isDark: boolean;
   onToggleTheme: () => void;
 }
@@ -116,14 +104,6 @@ export const TopBar: React.FC<TopBarProps> = ({
     };
   }, [showViewsMenu]);
 
-  const formatTimer = (sec: number) => {
-    const hrs = Math.floor(sec / 3600);
-    const mins = Math.floor((sec % 3600) / 60);
-    const secs = sec % 60;
-    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const isTimerEnabled = visibleTabs.includes('timetracker');
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md border-b border-neutral-200 dark:border-neutral-800 text-neutral-800 dark:text-neutral-100 transition-colors duration-200 shadow-xs">
@@ -172,33 +152,6 @@ export const TopBar: React.FC<TopBarProps> = ({
 
           {/* Zone 3: Navigation controls, views manager, theme toggle, action buttons */}
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-            
-            {/* Live Timer Widget (Visible only if timetracker is enabled) */}
-            {isTimerEnabled && activeTimer.projectName && (
-              <div className="hidden sm:flex items-center gap-2 bg-neutral-100 dark:bg-neutral-800/80 border border-neutral-300 dark:border-neutral-700/60 rounded-md px-2.5 py-1 text-xs">
-                <Clock className="w-3.5 h-3.5 text-neutral-500 dark:text-neutral-400" />
-                <span className="text-neutral-700 dark:text-neutral-300 max-w-[110px] truncate" title={activeTimer.projectName}>
-                  {activeTimer.projectName}
-                </span>
-                <span className="font-mono tabular-nums text-neutral-900 dark:text-white font-medium">
-                  {formatTimer(activeTimer.seconds)}
-                </span>
-                <button
-                  onClick={onToggleTimer}
-                  className="p-1 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-colors cursor-pointer"
-                  title={activeTimer.isRunning ? 'Pause' : 'Resume'}
-                >
-                  {activeTimer.isRunning ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-                </button>
-                <button
-                  onClick={onStopTimer}
-                  className="p-1 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded text-red-600 dark:text-red-400 transition-colors cursor-pointer"
-                  title="Stop & Log Entry"
-                >
-                  <Square className="w-3 h-3" />
-                </button>
-              </div>
-            )}
 
             {/* Customize Visible Views Popover */}
             <div className="relative" ref={viewsMenuRef}>
@@ -224,7 +177,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                       Customize Pages
                     </span>
                     <span className="text-[10px] text-neutral-500 font-mono">
-                      {visibleTabs.length} of 5 active
+                      {visibleTabs.length} of {ALL_WORKSPACE_TABS.length} active
                     </span>
                   </div>
 
@@ -310,17 +263,6 @@ export const TopBar: React.FC<TopBarProps> = ({
                 </span>
               </button>
             </div>
-
-            {/* Log Hours Button (Visible only if timetracker is enabled) */}
-            {isTimerEnabled && (
-              <button
-                onClick={onOpenLogTime}
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-md border border-neutral-300 dark:border-neutral-700 transition-colors whitespace-nowrap cursor-pointer"
-              >
-                <Clock className="w-3.5 h-3.5 text-neutral-500 dark:text-neutral-400" />
-                Log Hours
-              </button>
-            )}
 
             {/* New Project Primary CTA */}
             <button
