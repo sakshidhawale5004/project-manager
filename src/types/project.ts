@@ -66,3 +66,12 @@ export interface PrioritizationWeights {
   leadWorkloadWeight: number; // e.g. 15
   unblockedStatusWeight: number; // e.g. 10
 }
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  username: string;
+  role: string;
+  email: string;
+  avatarBg: string;
+}

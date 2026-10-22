@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Project, RemoteTeamMember, TimeEntry, PrioritizationWeights, ProjectStatus } from './types/project';
+import { Project, RemoteTeamMember, TimeEntry, PrioritizationWeights, ProjectStatus, AuthUser } from './types/project';
 import { INITIAL_PROJECTS, INITIAL_MEMBERS, INITIAL_TIME_ENTRIES } from './data/initialProjects';
 import { DEFAULT_WEIGHTS, autoPrioritizeProjects } from './utils/prioritization';
 import { TopBar, TabKey } from './components/TopBar';
@@ -7,6 +7,7 @@ import { ProjectTable } from './components/ProjectTable';
 import { KanbanBoard } from './components/KanbanBoard';
 import { LeadsView } from './components/LeadsView';
 import { HostingVault } from './components/HostingVault';
+import { LoginPanel } from './components/LoginPanel';
 import { ProjectDetailModal } from './components/ProjectDetailModal';
 import { ProjectFormModal } from './components/ProjectFormModal';
 import { TimeLogModal } from './components/TimeLogModal';
@@ -22,6 +23,35 @@ export default function App() {
   // Real-time Global Search State & Lead Filter Sync
   const [globalSearch, setGlobalSearch] = useState<string>('');
   const [ledgerLeadFilter, setLedgerLeadFilter] = useState<string>('All');
+
+  // User Authentication Session with LocalStorage Persistence
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
+    try {
+      const saved = localStorage.getItem('dc_current_user');
+      if (saved) return JSON.parse(saved);
+      return null;
+    } catch {
+      return null;
+    }
+  });
+
+  const handleLogin = (user: AuthUser) => {
+    setCurrentUser(user);
+    try {
+      localStorage.setItem('dc_current_user', JSON.stringify(user));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    try {
+      localStorage.removeItem('dc_current_user');
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // Core Data with LocalStorage Persistence
   const [projects, setProjects] = useState<Project[]>(() => {
@@ -491,6 +521,18 @@ export default function App() {
     document.body.removeChild(link);
   };
 
+  // Render Login Panel if user is not authenticated
+  if (!currentUser) {
+    return (
+      <LoginPanel
+        onLogin={handleLogin}
+        teamMembers={members}
+        isDark={isDark}
+        onToggleTheme={handleToggleTheme}
+      />
+    );
+  }
+
   return (
     <div className={`min-h-screen transition-colors duration-200 ${isDark ? 'dark bg-neutral-950 text-neutral-100' : 'bg-neutral-100/60 text-neutral-900'} flex flex-col font-sans selection:bg-[#F05A28]/25 selection:text-[#F05A28]`}>
       {/* Universal TopBar Contract */}
@@ -507,6 +549,8 @@ export default function App() {
         searchQuery={globalSearch}
         onSearchChange={setGlobalSearch}
         matchingProjectsCount={matchingProjectsCount}
+        currentUser={currentUser}
+        onLogout={handleLogout}
         isDark={isDark}
         onToggleTheme={handleToggleTheme}
       />

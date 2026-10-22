@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Sun, Moon, LayoutGrid, Layers, Search, X } from 'lucide-react';
+import { Plus, Sun, Moon, LayoutGrid, Layers, Search, X, LogOut } from 'lucide-react';
 import { DigitalCoyotesLogo } from './DigitalCoyotesLogo';
+import { AuthUser } from '../types/project';
 
 export type TabKey = 'projects' | 'kanban' | 'leads' | 'hosting';
 
@@ -48,6 +49,8 @@ interface TopBarProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   matchingProjectsCount?: number;
+  currentUser?: AuthUser | null;
+  onLogout?: () => void;
   isDark: boolean;
   onToggleTheme: () => void;
 }
@@ -62,6 +65,8 @@ export const TopBar: React.FC<TopBarProps> = ({
   searchQuery,
   onSearchChange,
   matchingProjectsCount,
+  currentUser,
+  onLogout,
   isDark,
   onToggleTheme,
 }) => {
@@ -325,6 +330,35 @@ export const TopBar: React.FC<TopBarProps> = ({
               <span className="hidden sm:inline">New Project</span>
               <span className="sm:hidden">New</span>
             </button>
+
+            {/* Logged-in User Profile & Sign Out */}
+            {currentUser && (
+              <div className="flex items-center gap-1.5 pl-2 border-l border-neutral-200 dark:border-neutral-800">
+                <div
+                  className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold font-mono border shadow-2xs ${currentUser.avatarBg}`}
+                  title={`${currentUser.name} (${currentUser.role})`}
+                >
+                  {currentUser.name.substring(0, 2).toUpperCase()}
+                </div>
+                <div className="hidden xl:flex flex-col text-left">
+                  <span className="text-xs font-semibold text-neutral-800 dark:text-neutral-200 leading-tight">
+                    {currentUser.name}
+                  </span>
+                  <span className="text-[10px] text-neutral-400 leading-tight truncate max-w-[85px]">
+                    {currentUser.role.split('&')[0]}
+                  </span>
+                </div>
+                {onLogout && (
+                  <button
+                    onClick={onLogout}
+                    className="p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                    title="Sign Out / Switch User"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
