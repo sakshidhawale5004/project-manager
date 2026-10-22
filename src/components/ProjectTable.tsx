@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Project, PriorityLevel, ProjectStatus, RemoteTeamMember } from '../types/project';
 import {
   Search,
@@ -19,6 +19,9 @@ import {
 interface ProjectTableProps {
   projects: Project[];
   teamMembers?: RemoteTeamMember[];
+  globalSearch?: string;
+  onSearchChange?: (val: string) => void;
+  initialLeadFilter?: string;
   onSelectProject: (project: Project) => void;
   onEditProject: (project: Project) => void;
   onStartTimer: (project: Project) => void;
@@ -28,13 +31,32 @@ interface ProjectTableProps {
 export const ProjectTable: React.FC<ProjectTableProps> = ({
   projects,
   teamMembers,
+  globalSearch,
+  onSearchChange,
+  initialLeadFilter,
   onSelectProject,
   onEditProject,
   onStartTimer,
   onExportCSV,
 }) => {
-  const [search, setSearch] = useState('');
-  const [leadFilter, setLeadFilter] = useState<string>('All');
+  const [localSearch, setLocalSearch] = useState('');
+  const search = globalSearch !== undefined ? globalSearch : localSearch;
+  const handleSearchChange = (val: string) => {
+    if (onSearchChange) {
+      onSearchChange(val);
+    } else {
+      setLocalSearch(val);
+    }
+  };
+
+  const [leadFilter, setLeadFilter] = useState<string>(initialLeadFilter || 'All');
+
+  useEffect(() => {
+    if (initialLeadFilter) {
+      setLeadFilter(initialLeadFilter);
+    }
+  }, [initialLeadFilter]);
+
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [priorityFilter, setPriorityFilter] = useState<string>('All');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -173,14 +195,14 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Search projects, leads, credentials, remarks, tech..."
             className="w-full bg-neutral-50 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700/80 rounded-md pl-9 pr-3 py-1.5 text-xs text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:border-indigo-500 transition-colors"
           />
           {search && (
             <button
-              onClick={() => setSearch('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-neutral-400 hover:text-neutral-700 dark:hover:text-white"
+              onClick={() => handleSearchChange('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-neutral-400 hover:text-neutral-700 dark:hover:text-white cursor-pointer"
             >
               Clear
             </button>

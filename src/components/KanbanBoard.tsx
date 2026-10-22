@@ -5,6 +5,8 @@ import { ExternalLink, Play, MoreHorizontal, ArrowRight, ArrowLeft } from 'lucid
 interface KanbanBoardProps {
   projects: Project[];
   teamMembers?: RemoteTeamMember[];
+  globalSearch?: string;
+  onClearSearch?: () => void;
   onSelectProject: (project: Project) => void;
   onUpdateStatus: (projectId: string, newStatus: ProjectStatus) => void;
   onStartTimer: (project: Project) => void;
@@ -22,6 +24,8 @@ const COLUMNS: { status: ProjectStatus; title: string; color: string }[] = [
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   projects,
   teamMembers,
+  globalSearch,
+  onClearSearch,
   onSelectProject,
   onUpdateStatus,
   onStartTimer,
@@ -39,9 +43,26 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     return Array.from(leads).sort();
   }, [projects, teamMembers]);
 
-  const filteredProjects = projects.filter(
-    (p) => selectedLead === 'All' || p.projectLead.toLowerCase() === selectedLead.toLowerCase()
-  );
+  const filteredProjects = useMemo(() => {
+    return projects.filter((p) => {
+      const matchesLead =
+        selectedLead === 'All' || p.projectLead.toLowerCase() === selectedLead.toLowerCase();
+
+      let matchesSearch = true;
+      if (globalSearch && globalSearch.trim()) {
+        const q = globalSearch.toLowerCase().trim();
+        matchesSearch = Boolean(
+          p.name.toLowerCase().includes(q) ||
+          p.projectLead.toLowerCase().includes(q) ||
+          (p.subLead && p.subLead.toLowerCase().includes(q)) ||
+          (p.technology && p.technology.toLowerCase().includes(q)) ||
+          (p.framework && p.framework.toLowerCase().includes(q))
+        );
+      }
+
+      return matchesLead && matchesSearch;
+    });
+  }, [projects, selectedLead, globalSearch]);
 
   return (
     <div className="space-y-4">
@@ -54,20 +75,37 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 text-xs">
-          <span className="text-neutral-500 dark:text-neutral-400">Filter Lead:</span>
-          <select
-            value={selectedLead}
-            onChange={(e) => setSelectedLead(e.target.value)}
-            className="bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded px-2.5 py-1 text-neutral-800 dark:text-neutral-200 focus:outline-none"
-          >
-            <option value="All">All Leads ({projects.length})</option>
-            {uniqueLeads.map((lead) => (
-              <option key={lead} value={lead}>
-                {lead}
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {globalSearch && (
+            <div className="flex items-center gap-1.5 bg-[#F05A28]/10 text-[#F05A28] border border-[#F05A28]/30 px-2.5 py-1 rounded-md font-mono text-xs">
+              <span>Filter: "<strong>{globalSearch}</strong>" ({filteredProjects.length} matches)</span>
+              {onClearSearch && (
+                <button
+                  onClick={onClearSearch}
+                  className="hover:underline font-bold ml-1 cursor-pointer"
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center gap-1.5">
+            <span className="text-neutral-500 dark:text-neutral-400">Filter Lead:</span>
+            <select
+              value={selectedLead}
+              onChange={(e) => setSelectedLead(e.target.value)}
+              className="bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded px-2.5 py-1 text-neutral-800 dark:text-neutral-200 focus:outline-none"
+            >
+              <option value="All">All Leads ({projects.length})</option>
+              {uniqueLeads.map((lead) => (
+                <option key={lead} value={lead}>
+                  {lead}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Sun, Moon, LayoutGrid, Layers } from 'lucide-react';
+import { Plus, Sun, Moon, LayoutGrid, Layers, Search, X } from 'lucide-react';
 import { DigitalCoyotesLogo } from './DigitalCoyotesLogo';
 
-export type TabKey = 'projects' | 'kanban' | 'hosting';
+export type TabKey = 'projects' | 'kanban' | 'leads' | 'hosting';
 
 interface TabMeta {
   id: TabKey;
@@ -25,6 +25,12 @@ export const ALL_WORKSPACE_TABS: TabMeta[] = [
     desc: 'Interactive 6-column workflow board across all client delivery stages',
   },
   {
+    id: 'leads',
+    label: 'Project Leads',
+    mobileLabel: 'Leads',
+    desc: 'Remote team leads directory, workload allocation, active assignments, and contact channels',
+  },
+  {
     id: 'hosting',
     label: 'Hosting & Backups',
     mobileLabel: 'Hosting',
@@ -39,14 +45,9 @@ interface TopBarProps {
   onToggleTabVisibility: (tab: TabKey) => void;
   onResetTabs: () => void;
   onOpenNewProject: () => void;
-  onOpenLogTime?: () => void;
-  activeTimer?: {
-    isRunning: boolean;
-    projectName: string;
-    seconds: number;
-  };
-  onToggleTimer?: () => void;
-  onStopTimer?: () => void;
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+  matchingProjectsCount?: number;
   isDark: boolean;
   onToggleTheme: () => void;
 }
@@ -58,10 +59,9 @@ export const TopBar: React.FC<TopBarProps> = ({
   onToggleTabVisibility,
   onResetTabs,
   onOpenNewProject,
-  onOpenLogTime,
-  activeTimer,
-  onToggleTimer,
-  onStopTimer,
+  searchQuery,
+  onSearchChange,
+  matchingProjectsCount,
   isDark,
   onToggleTheme,
 }) => {
@@ -69,6 +69,26 @@ export const TopBar: React.FC<TopBarProps> = ({
   const [istTime, setIstTime] = useState<string>('');
   const [showViewsMenu, setShowViewsMenu] = useState<boolean>(false);
   const viewsMenuRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Keyboard shortcut: Cmd+K / Ctrl+K / '/' to focus global search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      } else if (
+        e.key === '/' &&
+        document.activeElement?.tagName !== 'INPUT' &&
+        document.activeElement?.tagName !== 'TEXTAREA'
+      ) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     const updateTime = () => {
@@ -104,11 +124,10 @@ export const TopBar: React.FC<TopBarProps> = ({
     };
   }, [showViewsMenu]);
 
-
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md border-b border-neutral-200 dark:border-neutral-800 text-neutral-800 dark:text-neutral-100 transition-colors duration-200 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-4">
+        <div className="flex items-center justify-between h-16 gap-3 lg:gap-4">
           
           {/* Zone 1: Brand Wordmark with Digital Coyotes Geometric Logo */}
           <div className="flex items-center gap-3 shrink-0">
@@ -133,8 +152,8 @@ export const TopBar: React.FC<TopBarProps> = ({
             </div>
           </div>
 
-          {/* Zone 2: Clean single-line nav links with hover underlines for visible tabs only */}
-          <nav className="hidden lg:flex items-center gap-6 text-sm font-medium">
+          {/* Zone 2: Navigation Links */}
+          <nav className="hidden lg:flex items-center gap-5 text-sm font-medium shrink-0">
             {ALL_WORKSPACE_TABS.filter((tab) => visibleTabs.includes(tab.id)).map((tab) => (
               <button
                 key={tab.id}
@@ -149,6 +168,39 @@ export const TopBar: React.FC<TopBarProps> = ({
               </button>
             ))}
           </nav>
+
+          {/* Zone 2.5: Global Real-Time Search Bar */}
+          <div className="relative flex-1 max-w-xs md:max-w-sm hidden sm:block mx-1">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500 pointer-events-none" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Search project, lead, stack..."
+              className="w-full bg-neutral-100 dark:bg-neutral-800/80 hover:bg-neutral-100 dark:hover:bg-neutral-800 border border-neutral-200 dark:border-neutral-700/80 focus:border-[#F05A28] dark:focus:border-[#F05A28] rounded-lg pl-8 pr-16 py-1.5 text-xs text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none transition-colors"
+            />
+            {searchQuery ? (
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                {matchingProjectsCount !== undefined && (
+                  <span className="text-[10px] text-[#F05A28] font-mono font-semibold px-1 rounded bg-orange-500/10 hidden md:inline">
+                    {matchingProjectsCount}
+                  </span>
+                )}
+                <button
+                  onClick={() => onSearchChange('')}
+                  className="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-400 hover:text-neutral-700 dark:hover:text-white cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ) : (
+              <kbd className="hidden lg:inline-flex absolute right-2.5 top-1/2 -translate-y-1/2 items-center px-1.5 py-0.5 text-[10px] font-mono text-neutral-400 dark:text-neutral-500 bg-neutral-200/50 dark:bg-neutral-700/50 rounded border border-neutral-300/50 dark:border-neutral-600/50 pointer-events-none">
+                ⌘K
+              </kbd>
+            )}
+          </div>
 
           {/* Zone 3: Navigation controls, views manager, theme toggle, action buttons */}
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
@@ -273,6 +325,35 @@ export const TopBar: React.FC<TopBarProps> = ({
               <span className="hidden sm:inline">New Project</span>
               <span className="sm:hidden">New</span>
             </button>
+          </div>
+        </div>
+
+        {/* Mobile Search Bar */}
+        <div className="sm:hidden pb-2.5 pt-1 border-t border-neutral-100 dark:border-neutral-800/80">
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Search project, lead, stack..."
+              className="w-full bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg pl-8 pr-16 py-1.5 text-xs text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:border-[#F05A28]"
+            />
+            {searchQuery && (
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                {matchingProjectsCount !== undefined && (
+                  <span className="text-[10px] text-[#F05A28] font-mono font-semibold">
+                    {matchingProjectsCount}
+                  </span>
+                )}
+                <button
+                  onClick={() => onSearchChange('')}
+                  className="p-1 text-neutral-400 hover:text-neutral-700 dark:hover:text-white"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

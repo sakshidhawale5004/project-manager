@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Project, RemoteTeamMember, TimeEntry, PrioritizationWeights, ProjectStatus } from './types/project';
 import { INITIAL_PROJECTS, INITIAL_MEMBERS, INITIAL_TIME_ENTRIES } from './data/initialProjects';
 import { DEFAULT_WEIGHTS, autoPrioritizeProjects } from './utils/prioritization';
 import { TopBar, TabKey } from './components/TopBar';
 import { ProjectTable } from './components/ProjectTable';
 import { KanbanBoard } from './components/KanbanBoard';
+import { LeadsView } from './components/LeadsView';
 import { HostingVault } from './components/HostingVault';
 import { ProjectDetailModal } from './components/ProjectDetailModal';
 import { ProjectFormModal } from './components/ProjectFormModal';
@@ -12,11 +13,15 @@ import { TimeLogModal } from './components/TimeLogModal';
 import { DigitalCoyotesLogo } from './components/DigitalCoyotesLogo';
 import { RotateCcw } from 'lucide-react';
 
-const DEFAULT_VISIBLE_TABS: TabKey[] = ['projects', 'kanban', 'hosting'];
+const DEFAULT_VISIBLE_TABS: TabKey[] = ['projects', 'kanban', 'leads', 'hosting'];
 
 export default function App() {
   // Navigation
   const [activeTab, setActiveTab] = useState<TabKey>('projects');
+
+  // Real-time Global Search State & Lead Filter Sync
+  const [globalSearch, setGlobalSearch] = useState<string>('');
+  const [ledgerLeadFilter, setLedgerLeadFilter] = useState<string>('All');
 
   // Core Data with LocalStorage Persistence
   const [projects, setProjects] = useState<Project[]>(() => {
@@ -152,8 +157,11 @@ export default function App() {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const valid = parsed.filter(
-            (t: string) => t === 'projects' || t === 'kanban' || t === 'hosting'
+            (t: string) => t === 'projects' || t === 'kanban' || t === 'leads' || t === 'hosting'
           ) as TabKey[];
+          if (!valid.includes('leads')) {
+            valid.push('leads');
+          }
           if (valid.length > 0) return valid;
         }
       }
@@ -162,6 +170,20 @@ export default function App() {
     }
     return DEFAULT_VISIBLE_TABS;
   });
+
+  // Calculate real-time global matching projects count
+  const matchingProjectsCount = useMemo(() => {
+    if (!globalSearch.trim()) return projects.length;
+    const q = globalSearch.toLowerCase().trim();
+    return projects.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.projectLead.toLowerCase().includes(q) ||
+        (p.subLead && p.subLead.toLowerCase().includes(q)) ||
+        (p.technology && p.technology.toLowerCase().includes(q)) ||
+        (p.framework && p.framework.toLowerCase().includes(q))
+    ).length;
+  }, [projects, globalSearch]);
 
   useEffect(() => {
     try {
@@ -482,10 +504,9 @@ export default function App() {
           setEditProject(null);
           setIsNewProjectOpen(true);
         }}
-        onOpenLogTime={() => setIsLogTimeOpen(true)}
-        activeTimer={activeTimer}
-        onToggleTimer={handleToggleTimer}
-        onStopTimer={handleStopAndLogTimer}
+        searchQuery={globalSearch}
+        onSearchChange={setGlobalSearch}
+        matchingProjectsCount={matchingProjectsCount}
         isDark={isDark}
         onToggleTheme={handleToggleTheme}
       />
@@ -496,6 +517,9 @@ export default function App() {
           <ProjectTable
             projects={projects}
             teamMembers={members}
+            globalSearch={globalSearch}
+            onSearchChange={setGlobalSearch}
+            initialLeadFilter={ledgerLeadFilter}
             onSelectProject={(p) => setDetailProject(p)}
             onEditProject={(p) => {
               setEditProject(p);
@@ -510,9 +534,23 @@ export default function App() {
           <KanbanBoard
             projects={projects}
             teamMembers={members}
+            globalSearch={globalSearch}
+            onClearSearch={() => setGlobalSearch('')}
             onSelectProject={(p) => setDetailProject(p)}
             onUpdateStatus={handleUpdateStatus}
             onStartTimer={handleStartTimerForProject}
+          />
+        )}
+
+        {visibleTabs.includes('leads') && activeTab === 'leads' && (
+          <LeadsView
+            members={members}
+            projects={projects}
+            onSelectProject={(p) => setDetailProject(p)}
+            onFilterByLeadInLedger={(leadName) => {
+              setLedgerLeadFilter(leadName);
+              setActiveTab('projects');
+            }}
           />
         )}
 
