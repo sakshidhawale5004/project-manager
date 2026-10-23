@@ -131,19 +131,38 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
           {/* Row 2: Leads */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-neutral-600 dark:text-neutral-400 mb-1 font-medium">Project Lead (Remote)</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-neutral-600 dark:text-neutral-400 font-medium">Project Lead (Remote)</label>
+                <span className="text-[10px] text-neutral-400">1-Click Quick Select:</span>
+              </div>
               <input
                 list="modal-lead-options"
                 type="text"
                 value={formData.projectLead || ''}
                 onChange={(e) => setFormData({ ...formData, projectLead: e.target.value })}
                 className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded px-3 py-1.5 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:border-indigo-500"
-                placeholder="Sakshi, Aishwarya, Suraj, Hasina, Jorden..."
+                placeholder="Sakshi, Aishwarya, Suraj, Hasina, Jorden, Saniya, Kunal..."
               />
+              <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                {['Sakshi', 'Aishwarya', 'Suraj', 'Hasina', 'Jorden', 'Saniya', 'Kunal'].map((name) => (
+                  <button
+                    key={`quick-lead-${name}`}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, projectLead: name })}
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-mono transition-colors cursor-pointer border ${
+                      formData.projectLead?.toLowerCase() === name.toLowerCase()
+                        ? 'bg-[#F05A28] text-white border-[#F05A28]'
+                        : 'bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700'
+                    }`}
+                  >
+                    {name} {name === 'Saniya' || name === 'Kunal' ? '(Social)' : ''}
+                  </button>
+                ))}
+              </div>
               <datalist id="modal-lead-options">
                 {(teamMembers && teamMembers.length > 0
                   ? teamMembers.map((m) => m.name)
-                  : ['Sakshi', 'Aishwarya', 'Suraj', 'Hasina', 'Jorden']
+                  : ['Sakshi', 'Aishwarya', 'Suraj', 'Hasina', 'Jorden', 'Saniya', 'Kunal']
                 ).map((name) => (
                   <option key={name} value={name} />
                 ))}
@@ -157,7 +176,7 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
                 value={formData.subLead || ''}
                 onChange={(e) => setFormData({ ...formData, subLead: e.target.value })}
                 className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded px-3 py-1.5 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:border-indigo-500"
-                placeholder="Hasina, Jorden, Suraj..."
+                placeholder="Hasina, Jorden, Saniya, Kunal, Suraj..."
               />
             </div>
           </div>

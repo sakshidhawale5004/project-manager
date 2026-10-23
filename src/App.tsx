@@ -11,6 +11,7 @@ import { LoginPanel } from './components/LoginPanel';
 import { ProjectDetailModal } from './components/ProjectDetailModal';
 import { ProjectFormModal } from './components/ProjectFormModal';
 import { TimeLogModal } from './components/TimeLogModal';
+import { ActiveLeadsTrackingBar } from './components/ActiveLeadsTrackingBar';
 import { DigitalCoyotesLogo } from './components/DigitalCoyotesLogo';
 import { RotateCcw } from 'lucide-react';
 
@@ -62,8 +63,16 @@ export default function App() {
         return parsed.map((p) => {
           let updatedLead = p.projectLead;
           let updatedSub = p.subLead;
-          if (p.projectLead && p.projectLead.toLowerCase() === 'kunal') {
+          if (p.id === 'proj-3' && p.projectLead && p.projectLead.toLowerCase() === 'kunal') {
             updatedLead = 'Suraj';
+          }
+          if (p.id === 'proj-12') {
+            updatedLead = 'Kunal';
+            updatedSub = 'Saniya';
+          }
+          if (p.id === 'proj-27') {
+            updatedLead = 'Saniya';
+            updatedSub = 'Kunal';
           }
           if (p.subLead && p.subLead.toLowerCase() === 'rasika') {
             updatedSub = 'Hasina';
@@ -91,16 +100,45 @@ export default function App() {
       const saved = localStorage.getItem('dc_members') || localStorage.getItem('nexus_members');
       if (saved) {
         const parsed: RemoteTeamMember[] = JSON.parse(saved);
-        const filtered = parsed.filter(
-          (m) =>
-            m.name.toLowerCase() !== 'kunal' &&
-            m.name.toLowerCase() !== 'rasika'
-        );
-        if (!filtered.some((m) => m.name.toLowerCase() === 'hasina')) {
-          const hasina = INITIAL_MEMBERS.find((m) => m.name === 'Hasina');
-          if (hasina) return [...filtered, hasina];
+        if (Array.isArray(parsed)) {
+          // Initialize canonical map from INITIAL_MEMBERS ensuring unique IDs (e.g. mem-sakshi, mem-saniya, mem-kunal)
+          const canonicalMap = new Map<string, RemoteTeamMember>();
+          INITIAL_MEMBERS.forEach((m) => {
+            canonicalMap.set(m.name.toLowerCase(), {
+              ...m,
+              id: `mem-${m.name.toLowerCase()}`,
+            });
+          });
+
+          // Merge any saved operational status/timer seconds from existing localStorage
+          parsed.forEach((m) => {
+            if (!m || !m.name) return;
+            const nameKey = m.name.toLowerCase().trim();
+            if (nameKey === 'rasika') return; // Rasika removed per request
+
+            if (canonicalMap.has(nameKey)) {
+              const canon = canonicalMap.get(nameKey)!;
+              canonicalMap.set(nameKey, {
+                ...canon,
+                status: m.status || canon.status,
+                trackedTodaySeconds:
+                  typeof m.trackedTodaySeconds === 'number'
+                    ? m.trackedTodaySeconds
+                    : canon.trackedTodaySeconds,
+              });
+            }
+          });
+
+          const sanitized = Array.from(canonicalMap.values());
+          // Immediately overwrite any corrupt localStorage entry containing duplicate mem-6 keys
+          try {
+            localStorage.setItem('dc_members', JSON.stringify(sanitized));
+            localStorage.setItem('nexus_members', JSON.stringify(sanitized));
+          } catch {
+            // ignore
+          }
+          return sanitized;
         }
-        return filtered;
       }
     } catch (e) {
       console.error(e);
@@ -261,39 +299,72 @@ export default function App() {
     localStorage.setItem('nexus_weights', JSON.stringify(weights));
   }, [weights]);
 
-  // Live Timer Interval
+  // Live Timer Interval: runs continuously to tick activeTimer and all 'tracking' team leads
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    if (activeTimer.isRunning) {
-      interval = setInterval(() => {
-        setActiveTimer((prev) => ({
+    const interval = setInterval(() => {
+      // 1. Tick primary active timer if running
+      setActiveTimer((prev) => {
+        if (!prev.isRunning) return prev;
+        return {
           ...prev,
           seconds: prev.seconds + 1,
-        }));
-      }, 1000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [activeTimer.isRunning]);
+        };
+      });
+
+      // 2. Tick trackedTodaySeconds for all members currently marked as 'tracking'
+      setMembers((prev) => {
+        const hasTracking = prev.some((m) => m.status === 'tracking');
+        if (!hasTracking) return prev;
+        return prev.map((m) => {
+          if (m.status === 'tracking') {
+            return {
+              ...m,
+              trackedTodaySeconds: (m.trackedTodaySeconds || 0) + 1,
+            };
+          }
+          return m;
+        });
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Timer Control Handlers
   const handleToggleTimer = () => {
-    setActiveTimer((prev) => ({
-      ...prev,
-      isRunning: !prev.isRunning,
-    }));
+    setActiveTimer((prev) => {
+      const willRun = !prev.isRunning;
+      setMembers((mList) =>
+        mList.map((m) =>
+          m.name.toLowerCase() === prev.member.toLowerCase()
+            ? { ...m, status: willRun ? 'tracking' : 'active' }
+            : m
+        )
+      );
+      return {
+        ...prev,
+        isRunning: willRun,
+      };
+    });
   };
 
   const handleStartTimerForProject = (project: Project) => {
+    const lead = project.projectLead || 'Sakshi';
     setActiveTimer({
       isRunning: true,
       projectId: project.id,
       projectName: project.name,
-      member: project.projectLead || 'Sakshi',
+      member: lead,
       seconds: 0,
       description: `Task sprint on ${project.name}`,
     });
+    setMembers((prev) =>
+      prev.map((m) =>
+        m.name.toLowerCase() === lead.toLowerCase()
+          ? { ...m, status: 'tracking', currentProject: project.name }
+          : m
+      )
+    );
   };
 
   const handleStartCustomTimer = (projectId: string, member: string, description: string) => {
@@ -306,11 +377,188 @@ export default function App() {
       seconds: 0,
       description: description || `Development on ${proj?.name}`,
     });
+    setMembers((prev) =>
+      prev.map((m) =>
+        m.name.toLowerCase() === member.toLowerCase()
+          ? { ...m, status: 'tracking', currentProject: proj?.name || m.currentProject }
+          : m
+      )
+    );
+  };
+
+  // Start tracking directly for a specific team lead
+  const handleStartTrackingLead = (leadName: string, projectId?: string) => {
+    let targetProject: Project | undefined;
+    if (projectId) {
+      targetProject = projects.find((p) => p.id === projectId);
+    }
+    if (!targetProject) {
+      targetProject =
+        projects.find(
+          (p) =>
+            p.projectLead.toLowerCase() === leadName.toLowerCase() &&
+            (p.status === 'In process' || p.status === 'Changes from Client')
+        ) ||
+        projects.find((p) => p.projectLead.toLowerCase() === leadName.toLowerCase()) ||
+        projects[0];
+    }
+
+    const projName = targetProject?.name || 'Active Sprint';
+    const projId = targetProject?.id || '';
+
+    setMembers((prev) =>
+      prev.map((m) =>
+        m.name.toLowerCase() === leadName.toLowerCase()
+          ? { ...m, status: 'tracking', currentProject: projName }
+          : m
+      )
+    );
+
+    setActiveTimer({
+      isRunning: true,
+      projectId: projId,
+      projectName: projName,
+      member: leadName,
+      seconds: 0,
+      description: `Live sprint session for ${leadName} on ${projName}`,
+    });
+  };
+
+  // Stop tracking for a specific team lead and log their hours
+  const handleStopTrackingLead = (leadName: string) => {
+    const member = members.find((m) => m.name.toLowerCase() === leadName.toLowerCase());
+    const isPrimary = activeTimer.member.toLowerCase() === leadName.toLowerCase();
+    const duration = isPrimary && activeTimer.seconds >= 10 ? activeTimer.seconds : 1800;
+    const targetProject =
+      (isPrimary && projects.find((p) => p.id === activeTimer.projectId)) ||
+      projects.find((p) => p.name === member?.currentProject) ||
+      projects.find((p) => p.projectLead.toLowerCase() === leadName.toLowerCase()) ||
+      projects[0];
+
+    if (targetProject) {
+      const newEntry: TimeEntry = {
+        id: `time-${Date.now()}`,
+        projectId: targetProject.id,
+        projectName: targetProject.name,
+        member: leadName,
+        date: new Date().toISOString().split('T')[0],
+        durationSeconds: duration,
+        description: `Live sprint tracking session for ${leadName}`,
+        billable: true,
+        category: 'development',
+        timestamp: Date.now(),
+      };
+      setTimeEntries((prev) => [newEntry, ...prev]);
+
+      const hoursInc = Number((duration / 3600).toFixed(2));
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === targetProject.id
+            ? { ...p, loggedHours: Number(((p.loggedHours || 0) + hoursInc).toFixed(1)) }
+            : p
+        )
+      );
+    }
+
+    setMembers((prev) =>
+      prev.map((m) =>
+        m.name.toLowerCase() === leadName.toLowerCase()
+          ? { ...m, status: 'active' }
+          : m
+      )
+    );
+
+    if (isPrimary) {
+      setActiveTimer({
+        isRunning: false,
+        projectId: '',
+        projectName: '',
+        member: leadName,
+        seconds: 0,
+        description: '',
+      });
+    }
+  };
+
+  // Track ALL active leads simultaneously
+  const handleTrackAllActiveLeads = () => {
+    setMembers((prev) =>
+      prev.map((m) => {
+        const leadProjects = projects.filter(
+          (p) => p.projectLead.toLowerCase() === m.name.toLowerCase()
+        );
+        const topProject =
+          leadProjects.find((p) => p.status === 'In process' || p.status === 'Changes from Client') ||
+          leadProjects[0];
+        return {
+          ...m,
+          status: 'tracking',
+          currentProject: m.currentProject || topProject?.name || 'Active Sprint',
+        };
+      })
+    );
+    setActiveTimer((prev) => ({
+      ...prev,
+      isRunning: true,
+    }));
+  };
+
+  // Pause all active leads
+  const handlePauseAllActiveLeads = () => {
+    setMembers((prev) =>
+      prev.map((m) => (m.status === 'tracking' ? { ...m, status: 'active' } : m))
+    );
+    setActiveTimer((prev) => ({
+      ...prev,
+      isRunning: false,
+    }));
+  };
+
+  // Switch primary timer lead
+  const handleSwitchPrimaryTimerLead = (leadName: string) => {
+    const member = members.find((m) => m.name.toLowerCase() === leadName.toLowerCase());
+    const leadProjects = projects.filter(
+      (p) => p.projectLead.toLowerCase() === leadName.toLowerCase()
+    );
+    const targetProject =
+      projects.find((p) => p.name === member?.currentProject) ||
+      leadProjects.find((p) => p.status === 'In process' || p.status === 'Changes from Client') ||
+      leadProjects[0] ||
+      projects[0];
+
+    setActiveTimer((prev) => ({
+      isRunning: member?.status === 'tracking' ? true : prev.isRunning,
+      projectId: targetProject?.id || '',
+      projectName: targetProject?.name || 'Active Sprint',
+      member: leadName,
+      seconds: 0,
+      description: `Task sprint on ${targetProject?.name || 'Active Project'}`,
+    }));
+  };
+
+  // Update lead's current project
+  const handleUpdateLeadCurrentProject = (leadName: string, projectName: string) => {
+    setMembers((prev) =>
+      prev.map((m) =>
+        m.name.toLowerCase() === leadName.toLowerCase()
+          ? { ...m, currentProject: projectName }
+          : m
+      )
+    );
+    if (activeTimer.member.toLowerCase() === leadName.toLowerCase()) {
+      const proj = projects.find((p) => p.name === projectName);
+      setActiveTimer((prev) => ({
+        ...prev,
+        projectName,
+        projectId: proj?.id || prev.projectId,
+      }));
+    }
   };
 
   const handleStopAndLogTimer = () => {
-    if (activeTimer.seconds >= 10 && activeTimer.projectId) {
-      const loggedHoursInc = Number((activeTimer.seconds / 3600).toFixed(2));
+    if (activeTimer.projectId) {
+      const duration = activeTimer.seconds >= 10 ? activeTimer.seconds : 1800;
+      const loggedHoursInc = Number((duration / 3600).toFixed(2));
 
       // 1. Create time entry
       const newEntry: TimeEntry = {
@@ -319,7 +567,7 @@ export default function App() {
         projectName: activeTimer.projectName,
         member: activeTimer.member,
         date: new Date().toISOString().split('T')[0],
-        durationSeconds: activeTimer.seconds,
+        durationSeconds: duration,
         description: activeTimer.description || 'Live sprint tracking session',
         billable: true,
         category: 'development',
@@ -342,7 +590,7 @@ export default function App() {
           m.name.toLowerCase() === activeTimer.member.toLowerCase()
             ? {
                 ...m,
-                trackedTodaySeconds: m.trackedTodaySeconds + activeTimer.seconds,
+                trackedTodaySeconds: m.trackedTodaySeconds + duration,
                 status: 'active',
               }
             : m
@@ -401,6 +649,53 @@ export default function App() {
       const updated = prev.map((p) => (p.id === projectId ? { ...p, status: newStatus } : p));
       return autoPrioritizeProjects(updated, weights);
     });
+  };
+
+  // Reassign project lead
+  const handleUpdateProjectLead = (projectId: string, newLead: string) => {
+    setProjects((prev) => {
+      const updated = prev.map((p) => (p.id === projectId ? { ...p, projectLead: newLead } : p));
+      return autoPrioritizeProjects(updated, weights);
+    });
+  };
+
+  // Direct Quick Assign new project to a lead (1-Click)
+  const handleQuickAssignNewProject = (leadName: string, templateData?: Partial<Project>) => {
+    const newSrNo = projects.length > 0 ? Math.max(...projects.map((p) => p.srNo)) + 1 : 1;
+    const isSocial = leadName.toLowerCase() === 'saniya' || leadName.toLowerCase() === 'kunal';
+    const newProject: Project = {
+      id: `proj-${Date.now()}`,
+      srNo: newSrNo,
+      name: templateData?.name || `${leadName} Campaign ${newSrNo}`,
+      projectLead: leadName,
+      subLead:
+        templateData?.subLead !== undefined
+          ? templateData.subLead
+          : leadName.toLowerCase() === 'saniya'
+          ? 'Kunal'
+          : leadName.toLowerCase() === 'kunal'
+          ? 'Saniya'
+          : '',
+      liveUrl: templateData?.liveUrl || '',
+      startDate: templateData?.startDate || new Date().toISOString().split('T')[0],
+      initiationDate: templateData?.initiationDate || new Date().toISOString().split('T')[0],
+      technology: templateData?.technology || (isSocial ? 'Meta Business / Canva Pro' : 'React / Next.js'),
+      framework: templateData?.framework || (isSocial ? 'Instagram Reels & Content Strategy' : 'Tailwind CSS'),
+      design: templateData?.design || 'Approved',
+      content: templateData?.content || 'In Progress',
+      lastChange: 'Directly assigned via Quick Assign Hub',
+      status: (templateData?.status as ProjectStatus) || 'In process',
+      hosting: templateData?.hosting || 'Digital Coyotes Social Suite',
+      deadline: templateData?.deadline || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+      backup: templateData?.backup || '',
+      remark: templateData?.remark || `Directly assigned to ${leadName} (Social Media Handler) by Admin`,
+      estimatedHours: templateData?.estimatedHours || 40,
+      loggedHours: 0,
+      priorityLevel: 'P2',
+      priorityScore: 78,
+      clientUrgencyFlag: false,
+    };
+    setProjects((prev) => autoPrioritizeProjects([newProject, ...prev], weights));
   };
 
   // Save new / edited project
@@ -555,6 +850,21 @@ export default function App() {
         onToggleTheme={handleToggleTheme}
       />
 
+      {/* Active Team Leads Live Tracking Bar (Persistent Across Workspace) */}
+      <ActiveLeadsTrackingBar
+        members={members}
+        projects={projects}
+        activeTimer={activeTimer}
+        onTogglePrimaryTimer={handleToggleTimer}
+        onStopAndLogPrimaryTimer={handleStopAndLogTimer}
+        onStartTrackingLead={handleStartTrackingLead}
+        onStopTrackingLead={handleStopTrackingLead}
+        onTrackAllActiveLeads={handleTrackAllActiveLeads}
+        onPauseAllActiveLeads={handlePauseAllActiveLeads}
+        onOpenManualTimeLog={() => setIsLogTimeOpen(true)}
+        onSwitchPrimaryTimerLead={handleSwitchPrimaryTimerLead}
+      />
+
       {/* Main Workspace Canvas */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {visibleTabs.includes('projects') && activeTab === 'projects' && (
@@ -569,6 +879,7 @@ export default function App() {
               setEditProject(p);
               setIsNewProjectOpen(true);
             }}
+            onUpdateLead={handleUpdateProjectLead}
             onStartTimer={handleStartTimerForProject}
             onExportCSV={handleExportCSV}
           />
@@ -590,11 +901,20 @@ export default function App() {
           <LeadsView
             members={members}
             projects={projects}
+            currentUser={currentUser}
+            activeTimer={activeTimer}
             onSelectProject={(p) => setDetailProject(p)}
             onFilterByLeadInLedger={(leadName) => {
               setLedgerLeadFilter(leadName);
               setActiveTab('projects');
             }}
+            onQuickAssignNewProject={handleQuickAssignNewProject}
+            onReassignProjectLead={handleUpdateProjectLead}
+            onStartTrackingLead={handleStartTrackingLead}
+            onStopTrackingLead={handleStopTrackingLead}
+            onTrackAllActiveLeads={handleTrackAllActiveLeads}
+            onPauseAllActiveLeads={handlePauseAllActiveLeads}
+            onUpdateLeadCurrentProject={handleUpdateLeadCurrentProject}
           />
         )}
 

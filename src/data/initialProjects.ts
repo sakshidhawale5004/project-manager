@@ -1,4 +1,4 @@
-import { Project } from '../types/project';
+import { Project, RemoteTeamMember } from '../types/project';
 
 export const INITIAL_PROJECTS: Project[] = [
   {
@@ -270,8 +270,8 @@ export const INITIAL_PROJECTS: Project[] = [
     id: 'proj-12',
     srNo: 12,
     name: 'Atharv Enterprises',
-    projectLead: 'Sakshi',
-    subLead: 'Operations',
+    projectLead: 'Kunal',
+    subLead: 'Saniya',
     liveUrl: 'https://atharventerprises.co/',
     startDate: '2026-03-12',
     initiationDate: '2026-03-12',
@@ -632,8 +632,8 @@ export const INITIAL_PROJECTS: Project[] = [
     id: 'proj-27',
     srNo: 27,
     name: 'Herbiage',
-    projectLead: 'Aishwarya',
-    subLead: 'Hasina',
+    projectLead: 'Saniya',
+    subLead: 'Kunal',
     liveUrl: 'https://herbiage.projectinfo.in',
     startDate: '2026-03-11',
     initiationDate: '2026-03-11',
@@ -1710,9 +1710,9 @@ export const INITIAL_PROJECTS: Project[] = [
   },
 ];
 
-export const INITIAL_MEMBERS = [
+export const INITIAL_MEMBERS: RemoteTeamMember[] = [
   {
-    id: 'mem-1',
+    id: 'mem-sakshi',
     name: 'Sakshi',
     role: 'Managing Lead & Product Architect',
     email: 'sakshi.dhawale5004@gmail.com',
@@ -1724,7 +1724,7 @@ export const INITIAL_MEMBERS = [
     avatarBg: 'bg-emerald-900/60 text-emerald-300 border-emerald-700/50',
   },
   {
-    id: 'mem-2',
+    id: 'mem-aishwarya',
     name: 'Aishwarya',
     role: 'Senior Project Lead & Delivery Manager',
     email: 'aishwarya@agencyremote.in',
@@ -1736,7 +1736,7 @@ export const INITIAL_MEMBERS = [
     avatarBg: 'bg-indigo-900/60 text-indigo-300 border-indigo-700/50',
   },
   {
-    id: 'mem-3',
+    id: 'mem-suraj',
     name: 'Suraj',
     role: 'Technical Lead & Full-Stack Engineer',
     email: 'suraj@agencyremote.in',
@@ -1748,7 +1748,7 @@ export const INITIAL_MEMBERS = [
     avatarBg: 'bg-amber-900/60 text-amber-300 border-amber-700/50',
   },
   {
-    id: 'mem-4',
+    id: 'mem-hasina',
     name: 'Hasina',
     role: 'Project Lead & Quality Assurance',
     email: 'hasina@digitalcoyotes.com',
@@ -1760,7 +1760,7 @@ export const INITIAL_MEMBERS = [
     avatarBg: 'bg-orange-950/70 text-orange-400 border-orange-700/60',
   },
   {
-    id: 'mem-5',
+    id: 'mem-jorden',
     name: 'Jorden',
     role: 'Frontend Specialist & Shopify Dev',
     email: 'jorden@agencyremote.in',
@@ -1770,6 +1770,30 @@ export const INITIAL_MEMBERS = [
     trackedTodaySeconds: 4 * 3600 + 0,
     assignedProjectCount: 5,
     avatarBg: 'bg-rose-900/60 text-rose-300 border-rose-700/50',
+  },
+  {
+    id: 'mem-saniya',
+    name: 'Saniya',
+    role: 'Social Media Handler',
+    email: 'saniya@digitalcoyotes.com',
+    timezone: 'IST (UTC+5:30)',
+    status: 'active' as const,
+    currentProject: 'Herbiage Social Launch',
+    trackedTodaySeconds: 3 * 3600 + 40 * 60,
+    assignedProjectCount: 5,
+    avatarBg: 'bg-fuchsia-950/70 text-fuchsia-300 border-fuchsia-700/60',
+  },
+  {
+    id: 'mem-kunal',
+    name: 'Kunal',
+    role: 'Social Media Handler',
+    email: 'kunal@digitalcoyotes.com',
+    timezone: 'IST (UTC+5:30)',
+    status: 'active' as const,
+    currentProject: 'Digital Coyotes Campaigns',
+    trackedTodaySeconds: 4 * 3600 + 15 * 60,
+    assignedProjectCount: 4,
+    avatarBg: 'bg-cyan-950/70 text-cyan-300 border-cyan-700/60',
   },
 ];
 

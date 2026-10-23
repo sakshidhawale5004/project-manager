@@ -13,7 +13,11 @@ import {
   Filter,
   CheckCircle2,
   AlertTriangle,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ChevronDown,
+  UserCheck,
+  UserPlus,
+  X
 } from 'lucide-react';
 
 interface ProjectTableProps {
@@ -24,6 +28,7 @@ interface ProjectTableProps {
   initialLeadFilter?: string;
   onSelectProject: (project: Project) => void;
   onEditProject: (project: Project) => void;
+  onUpdateLead?: (projectId: string, newLead: string) => void;
   onStartTimer: (project: Project) => void;
   onExportCSV: () => void;
 }
@@ -36,6 +41,7 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
   initialLeadFilter,
   onSelectProject,
   onEditProject,
+  onUpdateLead,
   onStartTimer,
   onExportCSV,
 }) => {
@@ -60,6 +66,29 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [priorityFilter, setPriorityFilter] = useState<string>('All');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Active canonical team leads
+  const activeTeamLeads = useMemo(() => {
+    if (teamMembers && teamMembers.length > 0) {
+      return teamMembers.map((m) => m.name);
+    }
+    return ['Sakshi', 'Aishwarya', 'Suraj', 'Hasina', 'Jorden', 'Saniya', 'Kunal'];
+  }, [teamMembers]);
+
+  const activeTeamLeadsLower = useMemo(() => {
+    return activeTeamLeads.map((l) => l.toLowerCase());
+  }, [activeTeamLeads]);
+
+  // Projects not assigned to any of the 7 active team leads
+  const nonLeadProjectsCount = useMemo(() => {
+    return projects.filter(
+      (p) => !activeTeamLeadsLower.includes((p.projectLead || '').trim().toLowerCase())
+    ).length;
+  }, [projects, activeTeamLeadsLower]);
+
+  // Custom lead name prompt state
+  const [editingCustomLeadProject, setEditingCustomLeadProject] = useState<Project | null>(null);
+  const [customLeadInput, setCustomLeadInput] = useState<string>('');
 
   // Sorting
   const [sortField, setSortField] = useState<'srNo' | 'name' | 'priorityScore' | 'startDate' | 'deadline' | 'loggedHours'>('priorityScore');
@@ -105,7 +134,11 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
           (p.remark && p.remark.toLowerCase().includes(search.toLowerCase()));
 
         const matchesLead =
-          leadFilter === 'All' || p.projectLead.toLowerCase() === leadFilter.toLowerCase();
+          leadFilter === 'All'
+            ? true
+            : leadFilter === 'Non-Team Leads'
+            ? !activeTeamLeadsLower.includes((p.projectLead || '').trim().toLowerCase())
+            : p.projectLead.toLowerCase() === leadFilter.toLowerCase();
 
         const matchesStatus =
           statusFilter === 'All' || p.status.toLowerCase() === statusFilter.toLowerCase();
@@ -220,12 +253,46 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
               className="bg-neutral-50 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded px-2 py-1 text-xs text-neutral-800 dark:text-neutral-200 focus:outline-none focus:border-indigo-500"
             >
               <option value="All">All Leads</option>
-              {uniqueLeads.map((lead) => (
-                <option key={lead} value={lead}>
-                  {lead}
-                </option>
-              ))}
+              {nonLeadProjectsCount > 0 && (
+                <option value="Non-Team Leads">⚠️ Non-Team Leads ({nonLeadProjectsCount})</option>
+              )}
+              <optgroup label="Team Leads">
+                {activeTeamLeads.map((lead) => (
+                  <option key={`lead-filter-${lead}`} value={lead}>
+                    {lead} {lead === 'Saniya' || lead === 'Kunal' ? '(Social Media)' : ''}
+                  </option>
+                ))}
+              </optgroup>
+              {uniqueLeads
+                .filter((l) => !activeTeamLeadsLower.includes(l.toLowerCase()))
+                .length > 0 && (
+                <optgroup label="Other Assignees">
+                  {uniqueLeads
+                    .filter((l) => !activeTeamLeadsLower.includes(l.toLowerCase()))
+                    .map((lead) => (
+                      <option key={`other-filter-${lead}`} value={lead}>
+                        {lead}
+                      </option>
+                    ))}
+                </optgroup>
+              )}
             </select>
+
+            {nonLeadProjectsCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setLeadFilter(leadFilter === 'Non-Team Leads' ? 'All' : 'Non-Team Leads')}
+                className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold cursor-pointer transition-colors border ${
+                  leadFilter === 'Non-Team Leads'
+                    ? 'bg-amber-500 text-white border-amber-600 shadow-xs'
+                    : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700/60 hover:bg-amber-100 dark:hover:bg-amber-900/40'
+                }`}
+                title="Filter to projects not assigned to one of the 7 active team leads"
+              >
+                <AlertTriangle className="w-3 h-3 text-amber-500 shrink-0" />
+                <span>{nonLeadProjectsCount} Non-Team Lead{nonLeadProjectsCount > 1 ? 's' : ''}</span>
+              </button>
+            )}
           </div>
 
           {/* Status Filter */}
@@ -421,14 +488,71 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
                         )}
                       </td>
 
-                      {/* Lead & Sub */}
-                      <td className="py-2.5 px-3">
-                        <div className="text-neutral-900 dark:text-neutral-200 font-medium">{project.projectLead}</div>
-                        {project.subLead && (
-                          <div className="text-[11px] text-neutral-500 dark:text-neutral-400">
-                            Sub: {project.subLead}
-                          </div>
-                        )}
+                      {/* Lead & Sub - with 1-click change / reassign */}
+                      <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
+                        {(() => {
+                          const isRecognizedLead = activeTeamLeadsLower.includes((project.projectLead || '').trim().toLowerCase());
+                          return (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <div className="relative inline-block max-w-[160px]">
+                                  <select
+                                    value={isRecognizedLead ? project.projectLead : '__non_lead__'}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      if (val === '__custom__') {
+                                        setEditingCustomLeadProject(project);
+                                        setCustomLeadInput(project.projectLead || '');
+                                      } else if (val !== '__non_lead__' && onUpdateLead) {
+                                        onUpdateLead(project.id, val);
+                                      }
+                                    }}
+                                    className={`w-full text-xs font-semibold py-1 pl-2 pr-6 rounded border transition-colors cursor-pointer appearance-none truncate ${
+                                      !isRecognizedLead
+                                        ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-400 dark:border-amber-600/70 text-amber-800 dark:text-amber-200 hover:bg-amber-100 shadow-2xs'
+                                        : 'bg-neutral-50 dark:bg-neutral-800/80 border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100 hover:border-[#F05A28]/60'
+                                    }`}
+                                    title={`Current Lead: ${project.projectLead}. Click to change or reassign.`}
+                                  >
+                                    {!isRecognizedLead && (
+                                      <option value="__non_lead__">
+                                        ⚠️ {project.projectLead || 'Unassigned'}
+                                      </option>
+                                    )}
+                                    <optgroup label="Reassign to Active Team Lead">
+                                      {activeTeamLeads.map((lead) => (
+                                        <option key={`row-lead-${project.id}-${lead}`} value={lead}>
+                                          {lead} {lead === 'Saniya' || lead === 'Kunal' ? '(Social Media)' : ''}
+                                        </option>
+                                      ))}
+                                    </optgroup>
+                                    <optgroup label="Other">
+                                      <option value="__custom__">✏️ Custom Lead Name...</option>
+                                    </optgroup>
+                                  </select>
+                                  <ChevronDown className={`w-3 h-3 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none ${
+                                    !isRecognizedLead ? 'text-amber-600 dark:text-amber-400' : 'text-neutral-400'
+                                  }`} />
+                                </div>
+
+                                {!isRecognizedLead && (
+                                  <span
+                                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-mono bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800 font-bold shrink-0"
+                                    title="Not in active team roster. Click dropdown to reassign."
+                                  >
+                                    <AlertTriangle className="w-2.5 h-2.5" /> Reassign
+                                  </span>
+                                )}
+                              </div>
+
+                              {project.subLead && (
+                                <div className="text-[10px] text-neutral-500 dark:text-neutral-400 truncate">
+                                  Sub: {project.subLead}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Status */}
@@ -547,6 +671,102 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
           </table>
         </div>
       </div>
+      {/* Custom Lead Reassignment Modal */}
+      {editingCustomLeadProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800 pb-3">
+              <div className="flex items-center gap-2">
+                <UserCheck className="w-4 h-4 text-[#F05A28]" />
+                <h3 className="font-bold text-sm text-neutral-900 dark:text-white">
+                  Change Project Lead
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingCustomLeadProject(null)}
+                className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-1 bg-neutral-50 dark:bg-neutral-800/50 p-2.5 rounded-lg border border-neutral-200/60 dark:border-neutral-700/60">
+              <div className="font-semibold text-xs text-neutral-900 dark:text-white">
+                {editingCustomLeadProject.name}
+              </div>
+              <div className="text-[11px] text-neutral-500 dark:text-neutral-400">
+                Current Assignee: <span className="font-mono font-bold text-amber-600 dark:text-amber-400">{editingCustomLeadProject.projectLead || 'Unassigned'}</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                Enter New Lead Name
+              </label>
+              <input
+                type="text"
+                value={customLeadInput}
+                onChange={(e) => setCustomLeadInput(e.target.value)}
+                placeholder="Type lead name (e.g. Saniya, Kunal, Suraj)..."
+                className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg px-3 py-2 text-xs text-neutral-900 dark:text-white focus:outline-none focus:border-[#F05A28]"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && customLeadInput.trim() && onUpdateLead) {
+                    onUpdateLead(editingCustomLeadProject.id, customLeadInput.trim());
+                    setEditingCustomLeadProject(null);
+                  }
+                }}
+              />
+            </div>
+
+            {/* Quick Team Lead Pills */}
+            <div className="space-y-1.5">
+              <span className="text-[10px] text-neutral-500 font-medium">Or 1-click assign to an active lead:</span>
+              <div className="flex flex-wrap gap-1.5">
+                {activeTeamLeads.map((lead) => (
+                  <button
+                    key={`modal-lead-pick-${lead}`}
+                    type="button"
+                    onClick={() => {
+                      if (onUpdateLead) {
+                        onUpdateLead(editingCustomLeadProject.id, lead);
+                      }
+                      setEditingCustomLeadProject(null);
+                    }}
+                    className="px-2.5 py-1 rounded-md text-xs font-medium bg-neutral-100 dark:bg-neutral-800 hover:bg-[#F05A28] hover:text-white border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 transition-colors cursor-pointer"
+                  >
+                    {lead} {lead === 'Saniya' || lead === 'Kunal' ? '(Social)' : ''}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-neutral-100 dark:border-neutral-800">
+              <button
+                type="button"
+                onClick={() => setEditingCustomLeadProject(null)}
+                className="px-3 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (customLeadInput.trim() && onUpdateLead) {
+                    onUpdateLead(editingCustomLeadProject.id, customLeadInput.trim());
+                  }
+                  setEditingCustomLeadProject(null);
+                }}
+                disabled={!customLeadInput.trim()}
+                className="px-4 py-1.5 rounded-lg bg-[#F05A28] hover:bg-[#d94e20] text-white text-xs font-semibold cursor-pointer disabled:opacity-50"
+              >
+                Save Lead Name
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

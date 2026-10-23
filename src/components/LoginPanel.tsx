@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { AuthUser, RemoteTeamMember } from '../types/project';
 import { DigitalCoyotesLogo } from './DigitalCoyotesLogo';
 import {
@@ -35,6 +35,24 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
   const [rememberMe, setRememberMe] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Guarantee strict uniqueness of staff member logins to prevent key collision
+  const deduplicatedMembers = useMemo(() => {
+    const seenNames = new Set<string>();
+    const list: RemoteTeamMember[] = [];
+    teamMembers.forEach((m) => {
+      if (!m || !m.name) return;
+      const norm = m.name.toLowerCase().trim();
+      if (!seenNames.has(norm)) {
+        seenNames.add(norm);
+        list.push({
+          ...m,
+          id: `mem-${norm}`,
+        });
+      }
+    });
+    return list;
+  }, [teamMembers]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -268,13 +286,13 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
           <div className="pt-3 border-t border-neutral-100 dark:border-neutral-800/80 space-y-2">
             <div className="flex items-center justify-between text-[11px] text-neutral-500 font-medium">
               <span>Quick Staff Logins (1-Click):</span>
-              <span className="font-mono text-[10px]">5 Active Leads</span>
+              <span className="font-mono text-[10px]">{deduplicatedMembers.length} Active Leads & Staff</span>
             </div>
 
             <div className="grid grid-cols-2 gap-1.5">
-              {teamMembers.map((member) => (
+              {deduplicatedMembers.map((member) => (
                 <button
-                  key={member.id}
+                  key={`login-lead-${member.id}`}
                   type="button"
                   onClick={() => handleQuickLoginLead(member)}
                   className="flex items-center gap-2 p-1.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50/70 dark:bg-neutral-800/40 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:border-[#F05A28]/40 transition-colors text-left cursor-pointer group"
